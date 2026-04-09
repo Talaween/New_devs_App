@@ -1,35 +1,45 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Any, List
+import pytz
 
-async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
+
+async def calculate_monthly_revenue(
+    property_id: str, month: int, year: int,
+    tenant_id: str = None, property_timezone: str = "UTC", db_session=None
+) -> Decimal:
     """
     Calculates revenue for a specific month.
+    Uses the property's local timezone to define month boundaries so that
+    check-in dates are evaluated in the context the property owner expects.
     """
 
-    start_date = datetime(year, month, 1)
+    # Localize month boundaries to the property's timezone
+    tz = pytz.timezone(property_timezone)
+    start_date = tz.localize(datetime(year, month, 1))
     if month < 12:
-        end_date = datetime(year, month + 1, 1)
+        end_date = tz.localize(datetime(year, month + 1, 1))
     else:
-        end_date = datetime(year + 1, 1, 1)
-        
-    print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date}")
+        end_date = tz.localize(datetime(year + 1, 1, 1))
 
-    # SQL Simulation (This would be executed against the actual DB)
+    print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date} (tz={property_timezone})")
+
+    # The SQL query converts check_in_date to the property's timezone before comparing,
+    # so a reservation at 23:30 UTC on Feb 29 correctly falls in March for Europe/Paris.
     query = """
         SELECT SUM(total_amount) as total
         FROM reservations
         WHERE property_id = $1
         AND tenant_id = $2
-        AND check_in_date >= $3
-        AND check_in_date < $4
+        AND check_in_date AT TIME ZONE $5 >= $3
+        AND check_in_date AT TIME ZONE $5 < $4
     """
-    
+
     # In production this query executes against a database session.
-    # result = await db.fetch_val(query, property_id, tenant_id, start_date, end_date)
+    # result = await db.fetch_val(query, property_id, tenant_id, start_date, end_date, property_timezone)
     # return result or Decimal('0')
-    
-    return Decimal('0') # Placeholder for now until DB connection is finalized
+
+    return Decimal('0')  # Placeholder for now until DB connection is finalized
 
 async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str, Any]:
     """
