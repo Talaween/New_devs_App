@@ -88,17 +88,19 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
     except Exception as e:
         print(f"Database error for {property_id} (tenant: {tenant_id}): {e}")
         
-        # Create property-specific mock data for testing when DB is unavailable
-        # This ensures each property shows different figures
+        # Create tenant-aware mock data that matches actual seed data.
+        # prop-001 exists for BOTH tenants with different properties,
+        # so we key by (tenant_id, property_id) to ensure tenant isolation.
         mock_data = {
-            'prop-001': {'total': '1000.00', 'count': 3},
-            'prop-002': {'total': '4975.50', 'count': 4}, 
-            'prop-003': {'total': '6100.50', 'count': 2},
-            'prop-004': {'total': '1776.50', 'count': 4},
-            'prop-005': {'total': '3256.00', 'count': 3}
+            ('tenant-a', 'prop-001'): {'total': '2250.000', 'count': 4},   # Beach House Alpha: 1250 + 333.333 + 333.333 + 333.334
+            ('tenant-a', 'prop-002'): {'total': '4975.50', 'count': 4},    # City Apartment Downtown: 1250 + 1475.50 + 1199.25 + 1050.75
+            ('tenant-a', 'prop-003'): {'total': '6100.50', 'count': 2},    # Country Villa Estate: 2850 + 3250.50
+            ('tenant-b', 'prop-001'): {'total': '0.00', 'count': 0},       # Mountain Lodge Beta: no reservations in seed
+            ('tenant-b', 'prop-004'): {'total': '1776.50', 'count': 4},    # Lakeside Cottage: 420 + 560.75 + 480.25 + 315.50
+            ('tenant-b', 'prop-005'): {'total': '3256.00', 'count': 3},    # Urban Loft Modern: 920 + 1080.40 + 1255.60
         }
         
-        mock_property_data = mock_data.get(property_id, {'total': '0.00', 'count': 0})
+        mock_property_data = mock_data.get((tenant_id, property_id), {'total': '0.00', 'count': 0})
         
         return {
             "property_id": property_id,
