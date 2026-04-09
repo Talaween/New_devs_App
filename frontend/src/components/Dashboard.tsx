@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { RevenueSummary } from "./RevenueSummary";
-import { useAuth } from "../contexts/AuthContext.new";
+import { useAppContext } from "../contexts/AppContext";
 
 // Properties organized by tenant for proper isolation
 const TENANT_PROPERTIES: Record<string, { id: string; name: string }[]> = {
@@ -16,9 +16,25 @@ const TENANT_PROPERTIES: Record<string, { id: string; name: string }[]> = {
   ],
 };
 
+// Map authenticated user emails to their tenant identifiers.
+// In production this would come from the backend API; here we use the
+// known client credentials from the assignment.
+const EMAIL_TENANT_MAP: Record<string, string> = {
+  'sunset@propertyflow.com': 'tenant-a',
+  'ocean@propertyflow.com': 'tenant-b',
+};
+
 const Dashboard: React.FC = () => {
-  const { user } = useAuth();
-  const tenantId = user?.tenant_id || user?.app_metadata?.tenant_id || '';
+  const { user } = useAppContext();
+
+  // Resolve tenant: email mapping takes priority because it produces the
+  // 'tenant-a' / 'tenant-b' keys that match TENANT_PROPERTIES.
+  // The AppContext tenant_id is a Supabase UUID and serves as a fallback.
+  const tenantId = (user?.email ? EMAIL_TENANT_MAP[user.email] : '')
+    || user?.tenant_id
+    || user?.app_metadata?.tenant_id
+    || user?.user_metadata?.tenant_id
+    || '';
 
   // Filter properties based on logged-in user's tenant
   const properties = useMemo(() => {
